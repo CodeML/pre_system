@@ -302,8 +302,8 @@ def update_task_status(
 @router.get("/filter/by-project/{project_id}", response_model=List[TaskListRead], summary="按项目查询任务", description="获取特定项目下的所有任务数据。")
 def get_tasks_by_project(
     project_id: int = Path(..., description="项目ID"),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000),
+    skip: int = Query(0, ge=0, description="跳过数"),
+    limit: int = Query(100, ge=1, le=1000, description="返回数"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -315,8 +315,8 @@ def get_tasks_by_project(
 @router.get("/filter/by-category/{category_id}", response_model=List[TaskListRead], summary="按分类查询任务", description="获取特定业务分类下的所有任务。")
 def get_tasks_by_category(
     category_id: int = Path(..., description="分类ID"),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000),
+    skip: int = Query(0, ge=0, description="跳过数"),
+    limit: int = Query(100, ge=1, le=1000, description="返回数"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -328,8 +328,8 @@ def get_tasks_by_category(
 @router.get("/filter/by-status/{status}", response_model=List[TaskListRead], summary="按状态查询任务", description="筛选处于特定状态（待开始/进行中等）的任务。")
 def get_tasks_by_status(
     status: str = Path(..., description="状态名称"),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000),
+    skip: int = Query(0, ge=0, description="跳过数"),
+    limit: int = Query(100, ge=1, le=1000, description="返回数"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -345,8 +345,8 @@ def get_tasks_by_status(
 @router.get("/filter/by-designer/{designer_id}", response_model=List[TaskListRead], summary="按设计师查询任务", description="查看分配给特定设计师的任务列表。")
 def get_tasks_by_designer(
     designer_id: int = Path(..., description="设计师ID"),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000),
+    skip: int = Query(0, ge=0, description="跳过数"),
+    limit: int = Query(100, ge=1, le=1000, description="返回数"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -358,8 +358,8 @@ def get_tasks_by_designer(
 @router.get("/filter/by-priority/{priority}", response_model=List[TaskListRead], summary="按优先级查询任务", description="筛选特定优先级（高/紧急等）的任务。")
 def get_tasks_by_priority(
     priority: str = Path(..., description="优先级名称"),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000),
+    skip: int = Query(0, ge=0, description="跳过数"),
+    limit: int = Query(100, ge=1, le=1000, description="返回数"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -375,8 +375,8 @@ def get_tasks_by_priority(
 @router.get("/filter/by-role/{role_id}", response_model=List[TaskListRead], summary="按角色查询任务", description="查询涉及特定工作角色的任务列表。")
 def get_tasks_by_role(
     role_id: int = Path(..., description="角色ID"),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000),
+    skip: int = Query(0, ge=0, description="跳过数"),
+    limit: int = Query(100, ge=1, le=1000, description="返回数"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -576,7 +576,7 @@ def get_project_progress(
 @router.post("/{task_id}/comments", response_model=TaskCommentRead, summary="发表评论", description="在任务下发表评论或回复，支持公开/私密设置。")
 def create_task_comment(
     task_id: int = Path(..., description="任务ID"),
-    comment: TaskCommentCreate,
+    comment: TaskCommentCreate = Body(..., description="评论内容对象"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -600,8 +600,8 @@ def create_task_comment(
 @router.get("/{task_id}/comments", response_model=List[TaskCommentRead], summary="获取评论列表", description="分页查询任务下的所有讨论记录。")
 def list_task_comments(
     task_id: int = Path(..., description="任务ID"),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000),
+    skip: int = Query(0, ge=0, description="跳过数"),
+    limit: int = Query(100, ge=1, le=1000, description="返回数"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):

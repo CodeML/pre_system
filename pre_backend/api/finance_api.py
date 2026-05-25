@@ -75,7 +75,7 @@ def get_project_budget(
 @router.put("/budgets/{project_id}", response_model=ProjectBudgetRead, summary="更新项目预算", description="修改项目的预算、实际收入或成本。")
 def update_project_budget(
     project_id: int = Path(..., description="项目ID"),
-    budget_in: ProjectBudgetUpdate = Body(...),
+    budget_in: ProjectBudgetUpdate = Body(..., description="预算更新数据"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):

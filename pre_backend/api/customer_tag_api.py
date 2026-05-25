@@ -138,7 +138,7 @@ def get_tag(
 @router.put("/tags/{tag_id}", response_model=CustomerTagRead, summary="更新标签", description="修改标签的名称、颜色、描述或分类信息。")
 def update_tag(
     tag_id: int = Path(..., description="标签ID"),
-    tag_data: CustomerTagCreate = Body(...),
+    tag_data: CustomerTagCreate = Body(..., description="标签更新数据"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):

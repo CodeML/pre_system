@@ -78,7 +78,7 @@ def get_file(
 @router.put("/{file_id}", response_model=FileRead, summary="更新文件信息", description="修改文件的名称、描述或活跃状态。")
 def update_file(
     file_id: int = Path(..., description="文件ID"),
-    file_in: FileUpdate = Body(...),
+    file_in: FileUpdate = Body(..., description="更新数据"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -103,8 +103,8 @@ def update_file(
 @router.get("/filter/by-task/{task_id}", response_model=List[FileRead], summary="按任务筛选文件", description="获取特定任务下上传的所有文件。")
 def get_files_by_task(
     task_id: int = Path(..., description="任务ID"),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000),
+    skip: int = Query(0, ge=0, description="跳过数"),
+    limit: int = Query(100, ge=1, le=1000, description="返回数"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -116,8 +116,8 @@ def get_files_by_task(
 @router.get("/filter/by-type/{file_type}", response_model=List[FileRead], summary="按类型筛选文件", description="按文件用途类型（如：成品图、素材、参考图）进行筛选。")
 def get_files_by_type(
     file_type: str = Path(..., description="文件类型"),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000),
+    skip: int = Query(0, ge=0, description="跳过数"),
+    limit: int = Query(100, ge=1, le=1000, description="返回数"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -129,7 +129,7 @@ def get_files_by_type(
 @router.post("/{task_id}/new-version", response_model=FileRead, summary="创建新版本", description="为同一任务下的同名文件上传一个新版本。")
 def create_new_version(
     task_id: int = Path(..., description="任务ID"),
-    file_data: FileCreate = Body(...),
+    file_data: FileCreate = Body(..., description="文件创建数据"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -185,7 +185,7 @@ def get_file_versions(
 @router.put("/{file_id}/confirm", response_model=FileRead, summary="确认文件", description="标记文件为已通过客户确认，并可附带备注信息。")
 def confirm_file(
     file_id: int = Path(..., description="文件ID"),
-    confirm_data: FileConfirm = Body(...),
+    confirm_data: FileConfirm = Body(..., description="确认数据"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):

@@ -76,10 +76,11 @@ def get_project(
 @router.put("/{project_id}", response_model=ProjectRead, summary="更新项目信息", description="修改项目的基本元数据（名称、类型、设计师、状态等）。")
 def update_project(
     project_id: int = Path(..., description="项目ID"),
-    project_data: ProjectUpdate = Body(...),
+    project_data: ProjectUpdate = Body(..., description="项目更新数据"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+
     """更新项目信息"""
     project = project_crud.get(db, project_id)
     if not project:
@@ -169,8 +170,8 @@ def clone_project(
 @router.get("/filter/by-customer/{customer_id}", response_model=List[ProjectListRead], summary="按客户查询项目", description="获取特定客户名下的所有项目。")
 def get_projects_by_customer(
     customer_id: int = Path(..., description="客户ID"),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000),
+    skip: int = Query(0, ge=0, description="跳过数"),
+    limit: int = Query(100, ge=1, le=1000, description="返回数"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -182,8 +183,8 @@ def get_projects_by_customer(
 @router.get("/filter/by-status/{status}", response_model=List[ProjectListRead], summary="按状态查询项目", description="筛选处于特定生命周期阶段的项目。")
 def get_projects_by_status(
     status: str = Path(..., description="状态名称（待启动/设计中等）"),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000),
+    skip: int = Query(0, ge=0, description="跳过数"),
+    limit: int = Query(100, ge=1, le=1000, description="返回数"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -199,8 +200,8 @@ def get_projects_by_status(
 @router.get("/filter/by-type/{project_type}", response_model=List[ProjectListRead], summary="按类型查询项目", description="按业务类型（如：3D建模、电商页）筛选项目。")
 def get_projects_by_type(
     project_type: str = Path(..., description="项目类型名称"),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000),
+    skip: int = Query(0, ge=0, description="跳过数"),
+    limit: int = Query(100, ge=1, le=1000, description="返回数"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -212,8 +213,8 @@ def get_projects_by_type(
 @router.get("/filter/by-platform/{platform}", response_model=List[ProjectListRead], summary="按平台查询项目", description="筛选针对特定电商平台设计的项目。")
 def get_projects_by_platform(
     platform: str = Path(..., description="平台名称"),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000),
+    skip: int = Query(0, ge=0, description="跳过数"),
+    limit: int = Query(100, ge=1, le=1000, description="返回数"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -225,8 +226,8 @@ def get_projects_by_platform(
 @router.get("/filter/by-designer/{designer_id}", response_model=List[ProjectListRead], summary="按设计师查询项目", description="查看分配给特定设计师（主/辅）的项目列表。")
 def get_projects_by_designer(
     designer_id: int = Path(..., description="设计师ID"),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000),
+    skip: int = Query(0, ge=0, description="跳过数"),
+    limit: int = Query(100, ge=1, le=1000, description="返回数"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):

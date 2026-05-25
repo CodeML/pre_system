@@ -78,8 +78,8 @@ def get_popular_materials(
 
 @router.get("/filter/reusable", response_model=List[MaterialRead], summary="获取可复用素材", description="筛选标记为可重复使用的素材。")
 def get_reusable_materials(
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000),
+    skip: int = Query(0, ge=0, description="跳过数"),
+    limit: int = Query(100, ge=1, le=1000, description="返回数"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -91,8 +91,8 @@ def get_reusable_materials(
 @router.get("/filter/by-type/{material_type}", response_model=List[MaterialRead], summary="按类型筛选素材", description="根据素材类型（如：图片、视频、模型）进行筛选。")
 def get_materials_by_type(
     material_type: str = Path(..., description="素材类型"),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000),
+    skip: int = Query(0, ge=0, description="跳过数"),
+    limit: int = Query(100, ge=1, le=1000, description="返回数"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -104,8 +104,8 @@ def get_materials_by_type(
 @router.get("/filter/by-category/{category}", response_model=List[MaterialRead], summary="按分类筛选素材", description="按业务分类筛选素材。")
 def get_materials_by_category(
     category: str = Path(..., description="分类名称"),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000),
+    skip: int = Query(0, ge=0, description="跳过数"),
+    limit: int = Query(100, ge=1, le=1000, description="返回数"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -117,8 +117,8 @@ def get_materials_by_category(
 @router.get("/filter/by-tag/{tag}", response_model=List[MaterialRead], summary="按标签筛选素材", description="获取带有特定标签的素材。")
 def get_materials_by_tag(
     tag: str = Path(..., description="标签名称"),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000),
+    skip: int = Query(0, ge=0, description="跳过数"),
+    limit: int = Query(100, ge=1, le=1000, description="返回数"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -130,8 +130,8 @@ def get_materials_by_tag(
 @router.get("/filter/by-project/{project_id}", response_model=List[MaterialRead], summary="按项目筛选素材", description="查询特定项目已关联的所有素材。")
 def get_materials_by_project(
     project_id: int = Path(..., description="项目ID"),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000),
+    skip: int = Query(0, ge=0, description="跳过数"),
+    limit: int = Query(100, ge=1, le=1000, description="返回数"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -143,8 +143,8 @@ def get_materials_by_project(
 @router.get("/filter/by-task/{task_id}", response_model=List[MaterialRead], summary="按任务筛选素材", description="查询特定任务已关联的所有素材。")
 def get_materials_by_task(
     task_id: int = Path(..., description="任务ID"),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000),
+    skip: int = Query(0, ge=0, description="跳过数"),
+    limit: int = Query(100, ge=1, le=1000, description="返回数"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -255,18 +255,19 @@ def increment_material_reuse(
 @router.put("/{material_id}", response_model=MaterialRead, summary="更新素材", description="修改素材的基本元数据（名称、分类、描述等）。")
 def update_material(
     material_id: int = Path(..., description="素材ID"),
-    material_data: MaterialUpdate = Body(...),
+    material_data: MaterialUpdate = Body(..., description="素材更新数据"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
-):
+    ):
     """更新素材"""
     material = material_crud.get(db, material_id)
     if not material:
         raise HTTPException(status_code=404, detail="素材不存在")
-    
+
     update_data = material_data.model_dump(exclude_unset=True)
     material = material_crud.update(db, material_id, update_data)
     return material
+
 
 
 @router.delete("/{material_id}", summary="删除素材", description="软删除素材库中的素材。")

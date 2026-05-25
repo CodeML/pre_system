@@ -102,8 +102,8 @@ def mark_all_as_read(
 @router.get("/filter/by-type/{notification_type}", response_model=List[NotificationRead], summary="按类型查询", description="按业务类型（如：系统、任务提醒）筛选通知。")
 def get_notifications_by_type(
     notification_type: str = Path(..., description="通知类型"),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(50, ge=1, le=100),
+    skip: int = Query(0, ge=0, description="跳过数"),
+    limit: int = Query(50, ge=1, le=100, description="返回数"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -117,8 +117,8 @@ def get_notifications_by_type(
 @router.get("/filter/by-priority/{priority}", response_model=List[NotificationRead], summary="按优先级查询", description="按紧急程度（高/中/低）筛选通知。")
 def get_notifications_by_priority(
     priority: str = Path(..., description="优先级"),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(50, ge=1, le=100),
+    skip: int = Query(0, ge=0, description="跳过数"),
+    limit: int = Query(50, ge=1, le=100, description="返回数"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):

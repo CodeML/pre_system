@@ -1,0 +1,43 @@
+name: pre_flutter
+description: 设计工作室PRE管理系统
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.6
+  dio: ^5.4.0
+  json_annotation: ^4.8.1
+  shared_preferences: ^2.2.2
+  file_picker: ^6.2.1
+  flutter_easyloading: ^3.0.5
+  community_charts_flutter: ^1.0.2
+  url_launcher: ^6.2.2
+  permission_handler: ^10.4.0
+  provider: ^6.1.1
+  adaptive_dialog: ^1.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.3
+  build_runner: ^2.4.6
+  json_serializable: ^6.7.1
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/json/
+  fonts:
+    - family: PingFangSC
+      fonts:
+        - asset: assets/fonts/PingFangSC-Regular.ttf
+
+# 核心新增：强制指定仅支持移动端
+platforms:
+  android:
+  ios:

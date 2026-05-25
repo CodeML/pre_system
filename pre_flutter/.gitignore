@@ -1,0 +1,33 @@
+# Flutter/Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+flutter_export_environment.sh
+ios/Flutter/flutter_assets/
+ios/Flutter/Flutter.framework/
+ios/Flutter/Flutter.podspec
+macos/Flutter/flutter_assets/
+macos/Flutter/Flutter.framework/
+macos/Flutter/Flutter.podspec
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.idea/workspace.xml
+*.idea/tasks.xml
+*.idea/gradle.xml
+*.idea/assetWizardSettings.xml
+*.idea/dictionaries
+*.idea/libraries
+*.idea/caches
+
+# 系统
+.DS_Store
+Thumbs.db
+
+# 敏感配置
+ios/Runner/Info.plist
+macos/Runner/Info.plist

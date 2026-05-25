@@ -1,0 +1,12 @@
+version: '3.8'
+services:
+  pre_backend:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./database:/app/database
+      - ./static:/app/static
+    env_file:
+      - .env
+    restart: always

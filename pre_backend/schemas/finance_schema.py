@@ -90,3 +90,24 @@ class InvoiceRead(InvoiceBase):
     id: int
     create_time: datetime
     model_config = ConfigDict(from_attributes=True)
+
+
+# ============= Quotation =============
+class QuotationBase(BaseModel):
+    quotation_no: str = Field(..., description="报价单编号")
+    customer_id: int = Field(..., description="客户ID")
+    title: str = Field(..., description="标题")
+    amount: float = Field(..., description="总金额")
+    items: Optional[List[dict]] = Field(None, description="报价项列表")
+    remark: Optional[str] = Field(None, description="备注")
+    status: str = Field("draft", description="状态")
+    expiry_date: Optional[datetime] = Field(None, description="有效期")
+
+class QuotationCreate(QuotationBase):
+    pass
+
+class QuotationRead(QuotationBase):
+    id: int
+    creator_id: int
+    create_time: datetime
+    model_config = ConfigDict(from_attributes=True)

@@ -1,12 +1,13 @@
 """
 通知 API
 """
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, Path
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, Path, Body
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime
 from config.auth import get_current_user
+from pydantic import BaseModel, Field, ConfigDict
 from database.db import get_db
 from models.user import User
 from crud.notification_crud import notification_crud
@@ -217,3 +218,70 @@ def export_notifications_csv(
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=notifications.csv"}
     )
+
+
+# ============================================================
+# 通知设置与手动推送
+# ============================================================
+
+class NotificationSettingsUpdate(BaseModel):
+    enable_email: Optional[bool] = None
+    enable_push: Optional[bool] = None
+    muted_types: Optional[str] = None
+
+@router.get("/settings/me", summary="获取个人通知设置", description="获取用户自定义的通知偏好配置。")
+def get_my_settings(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """获取通知设置"""
+    from models.notification import NotificationSetting
+    settings = db.query(NotificationSetting).filter(NotificationSetting.user_id == current_user.id).first()
+    if not settings:
+        settings = NotificationSetting(user_id=current_user.id)
+        db.add(settings)
+        db.commit()
+        db.refresh(settings)
+    return settings
+
+
+@router.post("/settings", summary="更新通知设置", description="保存用户自定义的通知屏蔽或订阅配置。")
+def update_notification_settings(
+    settings_in: NotificationSettingsUpdate = Body(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """更新通知设置"""
+    from models.notification import NotificationSetting
+    settings = db.query(NotificationSetting).filter(NotificationSetting.user_id == current_user.id).first()
+    if not settings:
+        settings = NotificationSetting(user_id=current_user.id)
+        db.add(settings)
+    
+    for field, value in settings_in.model_dump(exclude_unset=True).items():
+        setattr(settings, field, value)
+    
+    db.commit()
+    return {"message": "设置已保存"}
+
+
+@router.post("/push", summary="系统手动推送", description="手动触发一条系统通知（如回款提醒、紧急通知）。")
+def push_notification(
+    recipient_id: int = Body(..., description="接收人ID"),
+    title: str = Body(..., description="标题"),
+    content: str = Body(..., description="内容"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """手动推送通知"""
+    from models.notification import Notification
+    db_obj = Notification(
+        recipient_id=recipient_id,
+        sender_id=current_user.id,
+        type="system_manual",
+        title=title,
+        content=content
+    )
+    db.add(db_obj)
+    db.commit()
+    return {"message": "通知已推送", "notification_id": db_obj.id}

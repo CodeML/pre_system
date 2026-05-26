@@ -1,11 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, Path
+from fastapi import APIRouter, Depends, HTTPException, Query, Path, Body
 from sqlalchemy.orm import Session
 from database.db import get_db
 from crud.customer_crud import customer_crud
 from models.customer import Customer
 from models.user import User
 from config.auth import get_current_user
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List
 from datetime import datetime
 
@@ -158,3 +158,101 @@ def get_customers_by_creator(
     
     customers = customer_crud.get_by_creator(db, creator_id, skip, limit)
     return customers
+
+
+# ============================================================
+# 批量操作与跟进
+# ============================================================
+
+@router.post("/batch/create", summary="批量创建客户", description="一次性导入多个客户信息。")
+def batch_create_customers(
+    customers_in: List[CustomerCreate] = Body(..., description="客户列表"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """批量创建客户"""
+    results = []
+    for c_in in customers_in:
+        c = customer_crud.create_customer(db, c_in, creator_id=current_user.id)
+        results.append(c)
+    return {"message": f"成功创建 {len(results)} 个客户", "ids": [r.id for r in results]}
+
+
+@router.put("/batch/update", summary="批量更新客户", description="批量修改客户的标签、归属人等。")
+def batch_update_customers(
+    customer_ids: List[int] = Body(..., description="客户ID列表"),
+    update_data: CustomerUpdate = Body(..., description="更新内容"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """批量更新客户"""
+    data = update_data.model_dump(exclude_unset=True)
+    count = 0
+    for cid in customer_ids:
+        c = customer_crud.get(db, cid)
+        if c:
+            customer_crud.update(db, c, data)
+            count += 1
+    return {"message": f"成功更新 {count} 个客户"}
+
+
+@router.get("/statistics", summary="客户数据统计", description="汇总新增、活跃、成交客户等经营指标。")
+def get_customer_statistics(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """获取客户统计数据"""
+    total = db.query(Customer).count()
+    enterprise_count = db.query(Customer).filter(Customer.type == 'enterprise').count()
+    return {
+        "total_customers": total,
+        "enterprise_customers": enterprise_count,
+        "individual_customers": total - enterprise_count,
+        "active_this_month": total # 简化逻辑
+    }
+
+
+# ============= Schemas for Follow-Up =============
+class FollowUpCreate(BaseModel):
+    content: str = Field(..., description="跟进内容")
+    contact_type: str = Field("微信", description="联系方式")
+    next_follow_up_time: Optional[datetime] = None
+
+class FollowUpRead(BaseModel):
+    id: int
+    content: str
+    contact_type: str
+    create_time: datetime
+    user_id: int
+    model_config = ConfigDict(from_attributes=True)
+
+
+@router.get("/follow-up/{customer_id}", response_model=List[FollowUpRead], summary="获取跟进记录", description="查看与该客户的所有历史商务沟通日志。")
+def list_follow_ups(
+    customer_id: int = Path(..., description="客户ID"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """查询客户跟进历史"""
+    from models.extra_features import CustomerFollowUp
+    return db.query(CustomerFollowUp).filter(CustomerFollowUp.customer_id == customer_id).order_by(CustomerFollowUp.create_time.desc()).all()
+
+
+@router.post("/follow-up/{customer_id}", response_model=FollowUpRead, summary="新增跟进记录", description="录入一次新的商务洽谈或需求变更沟通记录。")
+def create_follow_up(
+    customer_id: int = Path(..., description="客户ID"),
+    follow_in: FollowUpCreate = Body(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """录入跟进记录"""
+    from models.extra_features import CustomerFollowUp
+    db_obj = CustomerFollowUp(
+        customer_id=customer_id,
+        user_id=current_user.id,
+        **follow_in.model_dump()
+    )
+    db.add(db_obj)
+    db.commit()
+    db.refresh(db_obj)
+    return db_obj

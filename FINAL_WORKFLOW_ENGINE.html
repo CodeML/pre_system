@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>Design Production OS - 全闭环实战流程图</title>
+    <!-- 引入 Mermaid.js 用于渲染高质量流程图 -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <style>
+        body { font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; background: #f4f7f9; margin: 0; padding: 40px; color: #2c3e50; }
+        .container { max-width: 1200px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
+        h1 { text-align: center; color: #1e88e5; margin-bottom: 10px; }
+        .legend { display: flex; justify-content: center; gap: 20px; margin-bottom: 30px; font-size: 14px; }
+        .legend-item { display: flex; align-items: center; gap: 5px; }
+        .dot { width: 12px; height: 12px; border-radius: 50%; }
+        .business { background: #e1f5fe; border: 1px solid #01579b; }
+        .production { background: #e8f5e9; border: 1px solid #1b5e20; }
+        .client { background: #fff3e0; border: 1px solid #e65100; }
+        .conflict { background: #ffebee; border: 1px solid #b71c1c; }
+        .desc { background: #f8f9fa; padding: 15px; border-left: 4px solid #1e88e5; margin-bottom: 20px; line-height: 1.6; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Design Production OS - 全生命周期流程引擎</h1>
+    <div class="desc">
+        本图通过 <b>7 大核心节点</b> 展示了从线索到入库的博弈过程。特别强化了“需求冻结线”与“法律级存证”逻辑，这是区分“玩具管理系统”与“工业级生产 OS”的关键。
+    </div>
+
+    <div class="legend">
+        <div class="legend-item"><div class="dot business"></div> 商务/财务环节</div>
+        <div class="legend-item"><div class="dot production"></div> 生产/内审环节</div>
+        <div class="legend-item"><div class="dot client"></div> 客户协同环节</div>
+        <div class="legend-item"><div class="dot conflict"></div> 风险/异常处理</div>
+    </div>
+
+    <div class="mermaid">
+graph TD
+    %% 第一阶段：获取与确权
+    A[客户咨询/线索录入] --> B[需求沟通/案例展示]
+    B --> C{是否接受报价?}
+    C -- 否 --> B
+    C -- 是 --> D[生成正式项目 + 初始化 OrgID]
+    D --> E[任务拆解与派单]
+
+    %% 第二阶段：生产与内审
+    E --> F[设计师工作台: 领单]
+    F --> G[上传初稿 V1]
+    G --> H{内部质检 QC?}
+    H -- 驳回 --> I[记录内部批注/改稿]
+    I --> F
+    H -- 通过 --> J[生成 ReviewSession 共享链接]
+
+    %% 第三阶段：客户协同与博弈 (核心深水区)
+    J --> K[客户门户: 画布级审阅]
+    K --> L{是否有意见?}
+    
+    L -- 无/确认 --> M[大号绿色按钮: 确认终稿]
+    L -- 有意见 --> N{判断意见来源}
+    
+    N -- 甲方内部矛盾 --> O[意见分类/标记意见人角色]
+    O --> P[系统提醒: 需客户方高层决策]
+    P --> K
+
+    N -- 明确意见 --> Q{是否触发需求漂移?}
+    
+    %% 需求变更分支
+    Q -- 是: 范围外需求 --> R[发起需求变更单 ChangeRequest]
+    R --> S{客户是否增费?}
+    S -- 否 --> T[驳回需求/维持原方案]
+    T --> K
+    S -- 是 --> U[追加报价/更新合同]
+    U --> V[需求重新冻结]
+    V --> W[RevisionRound++]
+
+    Q -- 否: 正常改稿 --> W
+    W --> X[设计师 Resolve / 上传新版]
+    X --> K
+
+    %% 第四阶段：弱确认存证
+    K -. 微信/语音确认 .-> Y[手动上传截图/弱存证]
+    Y -. 挂载 Timeline .-> M
+
+    %% 第五阶段：最终确权与锁定
+    M --> Z[电子签名 + IP 记录]
+    Z --> AA[生成 Delivery Snapshot 交付快照]
+    AA --> BB[物理锁定: is_locked = True]
+
+    %% 第六阶段：结算与资产化
+    BB --> CC[财务核销/开票]
+    CC --> DD[经营分析: 客户损耗画像 / 设计师绩效]
+    DD --> EE[文件入素材库 / 陈旧日志归档]
+
+    %% 样式美化
+    style A fill:#e1f5fe,stroke:#01579b
+    style C fill:#fff9c4,stroke:#fbc02d
+    style D fill:#e1f5fe,stroke:#01579b
+    style G fill:#e8f5e9,stroke:#1b5e20
+    style H fill:#fff9c4,stroke:#fbc02d
+    style K fill:#fff3e0,stroke:#e65100
+    style L fill:#fff9c4,stroke:#fbc02d
+    style R fill:#ffebee,stroke:#b71c1c
+    style M fill:#c8e6c9,stroke:#2e7d32,stroke-width:4px
+    style BB fill:#cfd8dc,stroke:#37474f,stroke-width:2px
+    style DD fill:#e1f5fe,stroke:#01579b
+    </div>
+</div>
+
+<script>
+    mermaid.initialize({
+        startOnLoad: true,
+        theme: 'default',
+        flowchart: {
+            curve: 'basis',
+            htmlLabels: true
+        }
+    });
+</script>
+
+</body>
+</html>

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, Float
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, Float, JSON
 from models.base import BaseModel
 from datetime import datetime
 
@@ -54,6 +54,16 @@ class File(BaseModel):
     upload_time = Column(DateTime, default=datetime.utcnow, nullable=False, comment="上传时间")
 
     is_active = Column(Boolean, default=True, nullable=False, comment="是否激活")
+
+    # 交付与下载控制
+    is_deliverable = Column(Boolean, default=False, comment="是否为正式交付物")
+    # delivery_level: preview(预览/水印), standard(标准图), source(源文件/PSD), commercial(商业授权)
+    delivery_level = Column(String(20), default="preview", comment="交付层级")
+    # capabilities: {"view": true, "download": false, "share": false, "commercial_use": false}
+    capabilities = Column(JSON, nullable=True, comment="文件具体授权能力集")
+    
+    allow_external_download = Column(Boolean, default=False, comment="是否允许客户下载(挂钩付款状态)")
+    download_count = Column(Integer, default=0)
 
     def __repr__(self):
         return f"<File(id={self.id}, name={self.name}, version={self.version}, task_id={self.task_id})>"

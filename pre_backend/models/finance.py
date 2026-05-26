@@ -1,6 +1,27 @@
-from sqlalchemy import Column, Integer, String, DateTime, Float, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, String, DateTime, Float, ForeignKey, Boolean, JSON, Text
 from models.base import BaseModel
 from datetime import datetime
+
+
+class Quotation(BaseModel):
+    """
+    报价单模型
+    """
+    __tablename__ = "quotations"
+
+    quotation_no = Column(String(100), unique=True, nullable=False, comment="报价单编号")
+    customer_id = Column(Integer, ForeignKey("customers.id", ondelete="CASCADE"), nullable=False, comment="客户ID")
+    creator_id = Column(Integer, ForeignKey("users.id"), nullable=False, comment="创建人ID")
+    
+    title = Column(String(255), nullable=False, comment="报价单标题")
+    amount = Column(Float, nullable=False, comment="总金额")
+    items = Column(JSON, nullable=True, comment="报价明细清单")
+    
+    status = Column(String(20), default="draft", comment="状态（draft/sent/accepted/rejected/converted）")
+    remark = Column(Text, nullable=True)
+    file_url = Column(String(500), nullable=True, comment="报价单文件地址")
+    
+    expiry_date = Column(DateTime, nullable=True, comment="有效期至")
 
 
 class FinanceRecord(BaseModel):
@@ -34,9 +55,31 @@ class ProjectBudget(BaseModel):
     actual_cost = Column(Float, default=0.0, comment="实际支出总成本")
     estimated_profit = Column(Float, default=0.0, comment="预估利润")
     
+    # 风险预警
+    risk_threshold = Column(Float, default=0.8, comment="成本警戒比例（如0.8表示成本达到预算80%即预警）")
+    is_risk_alert = Column(Boolean, default=False, comment="是否处于风险预警状态")
+    
     outsourcing_cost = Column(Float, default=0.0, comment="外包成本支出")
     material_cost = Column(Float, default=0.0, comment="素材采购成本")
     commission_cost = Column(Float, default=0.0, comment="人工提成支出")
+
+
+class PaymentOrder(BaseModel):
+    """
+    第三方支付订单（微信/支付宝等）
+    """
+    __tablename__ = "payment_orders"
+
+    order_no = Column(String(100), unique=True, nullable=False)
+    quotation_id = Column(Integer, ForeignKey("quotations.id"), nullable=True)
+    customer_id = Column(Integer, ForeignKey("customers.id"), nullable=False)
+    
+    amount = Column(Float, nullable=False)
+    pay_type = Column(String(20), comment="wechat/alipay")
+    
+    status = Column(String(20), default="pending", comment="pending/paid/failed")
+    transaction_id = Column(String(255), nullable=True, comment="第三方流水号")
+    pay_time = Column(DateTime, nullable=True)
 
 
 class Contract(BaseModel):
@@ -75,3 +118,21 @@ class Invoice(BaseModel):
     status = Column(String(20), default="issued", comment="状态（pending/issued/cancelled）")
     issue_date = Column(DateTime, default=datetime.utcnow, comment="开票日期")
     file_url = Column(String(500), nullable=True, comment="发票扫描件/电子发票地址")
+
+
+class ChangeRequest(BaseModel):
+    """
+    需求变更申请（防需求漂移的核心防火墙）
+    """
+    __tablename__ = "change_requests"
+
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    title = Column(String(255), nullable=False, comment="变更项名称")
+    reason = Column(Text, nullable=True, comment="变更原因")
+    
+    # 影响评估
+    estimated_hours = Column(Float, default=0, comment="预计增加工时")
+    additional_fee = Column(Float, default=0, comment="建议加收费用")
+    
+    status = Column(String(20), default="pending", comment="pending/approved/rejected")
+    approved_by = Column(Integer, ForeignKey("users.id"), nullable=True)

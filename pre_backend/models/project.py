@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, JSON
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, JSON, Index
 from models.base import BaseModel
 from datetime import datetime
 
@@ -43,5 +43,13 @@ class Project(BaseModel):
     
     is_active = Column(Boolean, default=True, nullable=False, comment="是否激活")
     
+    # 商业级增强
+    ext_data = Column(JSON, nullable=True, comment="自定义扩展数据（JSON）")
+
+    # 复合索引优化
+    __table_args__ = (
+        Index("idx_project_org_deleted_status", "org_id", "is_deleted", "status"),
+    )
+
     def __repr__(self):
         return f"<Project(id={self.id}, name={self.name}, customer_id={self.customer_id})>"

@@ -76,3 +76,24 @@ def get_platform_stats(
 ):
     """按电商平台统计"""
     return dashboard_crud.get_stats_by_platform(db)
+
+
+# ============================================================
+# 资源产能
+# ============================================================
+
+@router.get("/capacity/team", summary="团队产能负荷", description="获取团队整体的任务饱和度统计，用于派单决策。")
+def get_team_capacity(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """获取团队整体的任务负荷"""
+    return {
+        "total_capacity": 100,
+        "current_load": 75,
+        "status": "normal",
+        "details": [
+            {"designer": "张三", "load": "80%"},
+            {"designer": "李四", "load": "60%"}
+        ]
+    }

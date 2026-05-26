@@ -83,9 +83,30 @@ def user_login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = D
     user = user_crud.authenticate_user(db, form_data.username, form_data.password)
     if not user:
         raise HTTPException(status_code=401, detail="账号或密码错误")
+    
+    # 获取角色和权限 (Workspace Context)
+    from crud.user_role_crud import user_role_crud
+    user_roles = user_role_crud.get_user_roles(db, user.id)
+    role_codes = [r.code for r in user_roles]
+    
+    # 扁平化权限
+    permissions = []
+    for role in user_roles:
+        for p in role.permissions:
+            if p.code not in permissions:
+                permissions.append(p.code)
+    
     access_token = create_access_token(data={"sub": user.username})
     user_data = sqlalchemy_to_dict(user, exclude=["password"])
-    return {"access_token": access_token, "token_type": "bearer", "user": user_data}
+    
+    return {
+        "access_token": access_token, 
+        "token_type": "bearer", 
+        "user": user_data,
+        "roles": role_codes,
+        "permissions": permissions,
+        "org_id": user.org_id
+    }
 
 
 @router.post("/create", response_model=UserRead, summary="创建用户", description="注册新用户，用户名必须唯一")
@@ -151,35 +172,12 @@ def change_password(
     db: Session = Depends(get_db)
 ):
     """修改当前用户的密码"""
-    # 获取最新的用户信息
-    user = db.query(User).filter(User.id == current_user.id).first()
-    if not user:
-        raise_auth_error("用户不存在")
-    
-    # 验证旧密码
-    if not verify_password(request.old_password, user.password):
-        raise_business_error("旧密码错误")
-    
-    # 验证新密码和确认密码一致性（在 Schema 中已验证，此处再验证一次）
-    if request.new_password != request.confirm_password:
-        raise_business_error("新密码和确认密码不一致")
-    
-    # 验证新密码不同于旧密码
-    if request.old_password == request.new_password:
-        raise_business_error("新密码不能与旧密码相同")
-    
-    # 更新密码
-    hashed_password = get_password_hash(request.new_password)
-    user.password = hashed_password
-    db.commit()
-    db.refresh(user)
-    
-    return {"success": True, "message": "密码修改成功"}
+    try:
+        user_crud.update_password(db, current_user.username, request.old_password, request.new_password)
+        return {"success": True, "message": "密码修改成功"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
-
-# ============================================================
-# 管理员密码重置
-# ============================================================
 
 @router.post("/admin/reset-password/{user_id}", summary="管理员重置密码", description="管理员强行重置指定用户的密码")
 def admin_reset_password(
@@ -198,13 +196,13 @@ def admin_reset_password(
         raise HTTPException(status_code=403, detail="只有管理员才能重置密码")
     
     # 获取目标用户
-    target_user = db.query(User).filter(User.id == user_id).first()
+    target_user = user_crud.get(db, user_id)
     if not target_user:
         raise HTTPException(status_code=404, detail="用户不存在")
     
     # 重置密码
     try:
-        user_crud.reset_password(db, user_id, new_password)
+        user_crud.reset_password_by_username(db, target_user.username, new_password)
         return {
             "success": True,
             "message": f"用户 {target_user.username} 的密码已重置",
@@ -245,3 +243,50 @@ def admin_reset_password_by_username(
         }
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"密码重置失败: {str(e)}")
+
+
+# ============================================================
+# SaaS 运营增强：模拟登录 (Impersonation)
+# ============================================================
+
+@router.post("/admin/impersonate/{user_id}", summary="模拟用户登录", description="【上帝模式】管理员临时以指定用户身份进入系统，用于排查故障。")
+def impersonate_user(
+    user_id: int = Path(..., description="目标用户ID"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    管理员模拟登录
+    """
+    # 1. 严格权限校验：仅限超级管理员
+    from crud.user_role_crud import user_role_crud
+    user_roles = user_role_crud.get_user_roles(db, current_user.id)
+    role_codes = [r.code for r in user_roles]
+    if "admin" not in role_codes and "super_admin" not in role_codes:
+        raise HTTPException(status_code=403, detail="权限不足，仅限超级管理员使用模拟模式")
+    
+    # 2. 获取目标用户
+    target_user = user_crud.get(db, user_id)
+    if not target_user:
+        raise HTTPException(status_code=404, detail="目标用户不存在")
+    
+    # 3. 记录最高等级审计日志
+    from models.system import OperationLog
+    log = OperationLog(
+        user_id=current_user.id,
+        module="系统",
+        action="impersonate",
+        target_id=str(user_id),
+        content=f"管理员 {current_user.username} 正在模拟用户 {target_user.username} 身份登录",
+        status="success"
+    )
+    db.add(log)
+    db.commit()
+    
+    # 4. 生成目标用户的 Token
+    access_token = create_access_token(data={"sub": target_user.username})
+    return {
+        "access_token": access_token, 
+        "token_type": "bearer", 
+        "message": f"当前已进入 {target_user.name} 的模拟模式"
+    }

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>Design Production OS - 工业级治理与异常闭环</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <style>
+        body { font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; background: #f4f7f9; margin: 0; padding: 40px; color: #2c3e50; }
+        .container { max-width: 1400px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
+        h1 { text-align: center; color: #1e88e5; margin-bottom: 10px; }
+        .legend { display: flex; justify-content: center; gap: 20px; margin-bottom: 30px; font-size: 14px; }
+        .legend-item { display: flex; align-items: center; gap: 5px; }
+        .dot { width: 12px; height: 12px; border-radius: 50%; }
+        .business { background: #e1f5fe; border: 1px solid #01579b; }
+        .production { background: #e8f5e9; border: 1px solid #1b5e20; }
+        .client { background: #fff3e0; border: 1px solid #e65100; }
+        .exception { background: #ffebee; border: 1px solid #b71c1c; }
+        .desc { background: #f8f9fa; padding: 15px; border-left: 4px solid #1e88e5; margin-bottom: 20px; line-height: 1.6; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Design Production OS - 工业级交付治理引擎</h1>
+    <div class="desc">
+        <b>治理升级说明：</b>
+        1. <b>风险感知解锁</b>：引入 risk_level，将业务变动与法律风险物理隔离；
+        2. <b>交付能力解耦</b>：delivery_level 决定档次，capabilities 决定具体操作（看/传/下）；
+        3. <b>时间轴分层</b>：Timeline 自动过滤为“客户视图(Business)”、“审计视图(Audit)”与“系统视图(System)”，彻底治理数据爆炸。
+    </div>
+
+    <div class="legend">
+        <div class="legend-item"><div class="dot business"></div> 商务/财务</div>
+        <div class="legend-item"><div class="dot production"></div> 生产/内审</div>
+        <div class="legend-item"><div class="dot client"></div> 客户协同</div>
+        <div class="legend-item"><div class="dot exception"></div> 风险与治理</div>
+    </div>
+
+    <div class="mermaid">
+graph TD
+    %% 启动与分拆
+    A[报价/合同/项目初始化] --> B[任务指派: 唯一主状态机启动]
+
+    %% 生产与阻塞治理
+    B --> C[主状态: 待开始/设计中]
+    C --> D{物料是否到位?}
+    D -- 否 --> E[记录阻塞 Side-Data / 标记 Blocked]
+    E --> F[分析空转成本 Idle Cost]
+    F -- 物料到位 --> C
+
+    %% 协同与分层审计
+    C --> G[上传初稿]
+    G --> H{内部 QC?}
+    H -- 驳回 --> C
+    H -- 通过 --> I[主状态: 客户确认]
+    
+    %% 时间轴自动分层逻辑
+    I -. 生成 Business Timeline .-> J[客户可见事件流]
+    I -. 生成 Audit Timeline .-> K[内部完整审计流]
+
+    %% 客户博弈
+    I --> L{甲方内部分歧?}
+    L -- 是 --> M[标记身份 Reviewer Identity / 等待中介仲裁]
+    M --> I
+    
+    L -- 否 --> N{触发变更?}
+    N -- 是 --> O[变更单 ChangeRequest / 增费确认]
+    O --> C
+    
+    %% 确权与锁定
+    N -- 确认 --> P[电子签名 / 生成交付快照]
+    P --> Q[主状态: 已完成 / 物理锁定]
+
+    %% 风险感知解锁 (Side Workflow)
+    Q --> R{申请解锁?}
+    R -- Low Risk --> S[主管审批]
+    R -- Legal/High Risk --> T[财务 + 超管双审 / 法律风险记录]
+    S -- 通过 --> C
+    T -- 通过 --> C
+
+    %% 交付分层治理
+    Q --> U{支付状态?}
+    U -- 未结清 --> V[层级: Preview / 能力:仅查看]
+    U -- 已结清 --> W[层级: Source / 能力:开放下载/商业授权]
+    
+    W --> X[客户画像分析: 损耗率/决策效率]
+    X --> Y[主状态: 已归档 / 日志冷存]
+
+    %% 样式
+    style E fill:#eceff1,stroke:#455a64
+    style M fill:#fff9c4,stroke:#fbc02d
+    style T fill:#ffebee,stroke:#b71c1c
+    style V fill:#fff3e0,stroke:#e65100
+    style W fill:#c8e6c9,stroke:#2e7d32,stroke-width:3px
+    </div>
+</div>
+
+<script>
+    mermaid.initialize({
+        startOnLoad: true,
+        theme: 'default',
+        flowchart: {
+            curve: 'stepAfter',
+            htmlLabels: true
+        }
+    });
+</script>
+
+</body>
+</html>

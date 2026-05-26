@@ -1,23 +1,27 @@
-import "package:flutter/material.dart";
-import "package:flutter_easyloading/flutter_easyloading.dart";
-import 'routes/app_routes.dart';
-import 'routes/route_generator.dart';
-import 'core/constants/color_constants.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_easyloading/flutter_easyloading.dart';
+import 'router/app_router.dart';
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class PreApp extends ConsumerWidget {
+  const PreApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: '设计工作室PRE系统',
+  Widget build(BuildContext context, WidgetRef ref) {
+    final router = ref.watch(routerProvider);
+
+    return MaterialApp.router(
+      title: 'Design Production OS',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: ColorConstants.primaryColor),
-        visualDensity: VisualDensity.adaptivePlatformDensity,
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1E88E5)),
         useMaterial3: true,
+        appBarTheme: const AppBarTheme(
+          centerTitle: false,
+          elevation: 0,
+        ),
       ),
-      initialRoute: AppRoutes.login,
-      onGenerateRoute: RouteGenerator.generateRoute,
+      routerConfig: router,
+      // 关键修复：初始化 EasyLoading 渲染层
       builder: EasyLoading.init(),
       debugShowCheckedModeBanner: false,
     );

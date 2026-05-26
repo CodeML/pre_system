@@ -41,3 +41,33 @@ class Notification(BaseModel):
 
     def __repr__(self):
         return f"<Notification(id={self.id}, type={self.type}, recipient_id={self.recipient_id}, is_read={self.is_read})>"
+
+
+class NotificationSetting(BaseModel):
+    """
+    用户通知偏好设置
+    """
+    __tablename__ = "notification_settings"
+
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
+    
+    # 订阅开关
+    enable_email = Column(Boolean, default=True)
+    enable_push = Column(Boolean, default=True)
+    
+    # 屏蔽列表（逗号分隔的类型）
+    muted_types = Column(String(500), nullable=True, comment="屏蔽的消息类型")
+
+
+class NotificationTemplate(BaseModel):
+    """
+    通知话术模版
+    """
+    __tablename__ = "notification_templates"
+
+    code = Column(String(50), unique=True, index=True, nullable=False, comment="模版唯一编码")
+    title_tpl = Column(String(255), nullable=False, comment="标题模版")
+    content_tpl = Column(Text, nullable=False, comment="内容模版")
+    
+    type = Column(String(20), comment="模版分类")
+    is_active = Column(Boolean, default=True)

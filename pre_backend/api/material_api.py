@@ -153,6 +153,21 @@ def get_materials_by_task(
     return materials
 
 
+# ============================================================
+# AI 增强功能
+# ============================================================
+
+@router.get("/search/semantic", response_model=List[MaterialRead], summary="素材语义搜索", description="【AI增强】通过自然语言描述（如：搜一张简约风背景）搜索素材库。")
+def semantic_search_materials(
+    q: str = Query(..., description="搜索描述文本"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """语义搜索（逻辑占位）"""
+    # 实际应接入向量数据库，这里暂时退化为关键词搜索
+    return material_crud.search_by_name(db, q)
+
+
 @router.get("/{material_id}", response_model=MaterialRead, summary="获取素材详情", description="根据 ID 获取单个素材的详细信息。")
 def get_material(
     material_id: int = Path(..., description="素材ID"),

@@ -1,29 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'core/auth/auth_manager.dart';
-import 'routes/app_routes.dart';
-import 'routes/route_generator.dart';
 import 'app.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // 初始化本地存储
-  await AuthManager.init();
+  
+  // 初始化本地存储和鉴权管理器
+  await AuthNotifier.init();
 
-  final authManager = AuthManager();
-  await authManager.restoreLoginState();
+  configLoading();
 
   runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider<AuthManager>(create: (_) => authManager),
-      ],
-      child: const MyApp(),
+    const ProviderScope(
+      child: PreApp(),
     ),
   );
-  // 配置EasyLoading
-  configLoading();
 }
 
 void configLoading() {

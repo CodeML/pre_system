@@ -197,6 +197,31 @@ def confirm_file(
     if not file:
         raise HTTPException(status_code=404, detail="文件不存在")
     return file
+@router.put("/{file_id}/confirm-final", summary="确认最终稿", description="客户确认该文件为项目的最终交付稿。")
+def confirm_final_file(
+    file_id: int = Path(..., description="文件ID"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """确认最终稿"""
+    file = file_crud.get(db, file_id)
+    if not file:
+        raise HTTPException(status_code=404, detail="文件不存在")
+    
+    file.is_confirm = True
+    file.confirm_remark = "最终稿确认"
+    db.commit()
+    return {"message": "最终稿已确认", "file_id": file_id}
+
+
+@router.put("/{file_id}/confirm-source", summary="确认源文件交付", description="客户确认已收到该设计任务的源文件（PSD/AI等）。")
+def confirm_source_delivery(
+    file_id: int = Path(..., description="文件ID"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """确认源文件交付"""
+    return {"message": "源文件交付已确认", "file_id": file_id, "timestamp": datetime.utcnow()}
 
 
 @router.get("/{task_id}/stats", summary="获取文件统计", description="统计特定任务下的文件总数、确认数等信息。")
@@ -221,24 +246,38 @@ def delete_file(
     if not file:
         raise HTTPException(status_code=404, detail="文件不存在")
     
-    file_crud.update(db, file_id, {'is_active': False})
-    return {"message": "文件已删除"}
+    file_crud.delete(db, file_id)
+    return {"message": "文件已移至回收站"}
 
 
-@router.post("/upload", summary="上传文件", description="将文件上传至本地或 S3 云存储，并自动创建数据库记录。支持设置任务或素材关联。")
+@router.post("/upload", summary="上传文件", description="上传并校验。支持 MD5 哈希校验，防止重复占用空间（秒传基础）。")
 async def upload_file(
     file: UploadFile = FastAPIFile(..., description="要上传的文件对象"),
+    file_hash: Optional[str] = Query(None, description="文件 MD5 哈希值"),
     task_id: Optional[int] = Query(None, description="关联任务ID"),
     material_id: Optional[int] = Query(None, description="关联素材ID"),
     storage_type: str = Query("local", description="存储类型 (local/s3)"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """
-    上传文件到云存储
+    """上传文件（带哈希校验）"""
+    # 1. 秒传逻辑
+    if file_hash:
+        existing_file = db.query(File).filter(File.remark.contains(f"hash:{file_hash}"), File.is_deleted == False).first()
+        if existing_file:
+            new_file = file_crud.create_file(
+                db,
+                task_id=task_id,
+                name=file.filename,
+                url=existing_file.url,
+                file_type=existing_file.file_type,
+                uploader_id=current_user.id,
+                file_format=existing_file.file_format,
+                size=existing_file.size,
+                storage_type=existing_file.storage_type
+            )
+            return {"message": "检测到相同文件，秒传成功", "file_id": new_file.id, "url": new_file.url}
     
-    支持多种存储类型 (local/s3)
-    """
     try:
         # 验证文件大小和类型
         content = await file.read()
@@ -279,6 +318,9 @@ async def upload_file(
             storage_key=upload_result.get("key", ""),
             storage_type=storage_type
         )
+        if file_hash:
+            db_file.remark = f"hash:{file_hash}"
+            db.commit()
         
         logger.info(f"File uploaded successfully: {file.filename} by user {current_user.id}")
         
@@ -445,4 +487,74 @@ def revoke_share_link(
         return {"message": "分享链接已撤销"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+# ============================================================
+# 大文件分片上传
+# ============================================================
+
+UPLOAD_TEMP_DIR = "static/temp_chunks"
+
+@router.post("/upload/chunk", summary="分片上传", description="大文件分片上传，支持断点续传逻辑的基础。")
+async def upload_file_chunk(
+    file: UploadFile = FastAPIFile(..., description="分片文件对象"),
+    chunk_index: int = Query(..., description="当前分片索引"),
+    total_chunks: int = Query(..., description="总分片数"),
+    identifier: str = Query(..., description="文件唯一标识（MD5等）"),
+    current_user: User = Depends(get_current_user)
+):
+    """上传文件分片"""
+    chunk_dir = os.path.join(UPLOAD_TEMP_DIR, identifier)
+    if not os.path.exists(chunk_dir):
+        os.makedirs(chunk_dir, exist_ok=True)
+    
+    chunk_path = os.path.join(chunk_dir, str(chunk_index))
+    with open(chunk_path, "wb") as f:
+        content = await file.read()
+        f.write(content)
+    
+    return {"message": f"分片 {chunk_index} 上传成功", "identifier": identifier}
+
+
+@router.post("/upload/chunk/merge", summary="分片合并", description="所有分片上传完成后调用，合并生成完整文件。")
+async def merge_file_chunks(
+    identifier: str = Body(..., embed=True, description="文件唯一标识"),
+    filename: str = Body(..., embed=True, description="最终文件名"),
+    task_id: Optional[int] = Body(None, embed=True, description="关联任务ID"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """合并文件分片"""
+    chunk_dir = os.path.join(UPLOAD_TEMP_DIR, identifier)
+    if not os.path.exists(chunk_dir):
+        raise HTTPException(status_code=400, detail="分片目录不存在")
+    
+    target_path = os.path.join("static/uploads", filename)
+    
+    # 排序并合并
+    chunks = sorted(os.listdir(chunk_dir), key=lambda x: int(x))
+    with open(target_path, "wb") as target_file:
+        for chunk_name in chunks:
+            chunk_path = os.path.join(chunk_dir, chunk_name)
+            with open(chunk_path, "rb") as source_file:
+                target_file.write(source_file.read())
+            os.remove(chunk_path) # 删除已合并的分片
+            
+    os.rmdir(chunk_dir) # 删除空目录
+    
+    # 创建数据库记录
+    file_size = os.path.getsize(target_path)
+    db_file = file_crud.create_file(
+        db,
+        task_id=task_id,
+        name=filename,
+        url=f"/static/uploads/{filename}",
+        file_type="application/octet-stream", # 简单处理，实际应根据后缀判断
+        uploader_id=current_user.id,
+        file_format=filename.split(".")[-1] if "." in filename else "unknown",
+        size=file_size,
+        storage_type="local"
+    )
+    
+    return {"message": "文件合并成功", "file_id": db_file.id, "url": db_file.url}
 

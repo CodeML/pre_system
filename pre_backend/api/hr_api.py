@@ -4,6 +4,7 @@ from typing import List, Optional
 from database.db import get_db
 from models.user import User
 from config.auth import get_current_user
+from pydantic import BaseModel, Field, ConfigDict
 from crud.hr_crud import attendance_crud, timesheet_crud, performance_crud
 from schemas.hr_schema import (
     AttendanceRecordRead, AttendanceRecordCreate, 
@@ -41,6 +42,59 @@ def check_out(
     if not record:
         raise HTTPException(status_code=400, detail="未找到对应的签到记录")
     return record
+
+
+@router.get("/attendance/me", response_model=List[AttendanceRecordRead], summary="我的考勤", description="查询个人历史打卡明细。")
+def get_my_attendance(
+    skip: int = Query(0, description="跳过数"),
+    limit: int = Query(31, description="返回数"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """查询个人打卡历史"""
+    from models.hr import AttendanceRecord
+    return db.query(AttendanceRecord).filter(AttendanceRecord.user_id == current_user.id).order_by(AttendanceRecord.create_time.desc()).offset(skip).limit(limit).all()
+
+
+@router.get("/attendance/user/{user_id}", response_model=List[AttendanceRecordRead], summary="查询员工考勤", description="管理员查看指定员工的考勤数据。")
+def get_user_attendance(
+    user_id: int = Path(..., description="员工ID"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """管理员查询员工考勤"""
+    from models.hr import AttendanceRecord
+    return db.query(AttendanceRecord).filter(AttendanceRecord.user_id == user_id).order_by(AttendanceRecord.create_time.desc()).all()
+
+
+@router.get("/performance/user/{user_id}", response_model=List[PerformanceReviewRead], summary="查询员工绩效", description="管理员查看指定员工的所有绩效评审记录。")
+def get_user_performance(
+    user_id: int = Path(..., description="员工ID"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """管理员查询员工绩效"""
+    return performance_crud.get_by_user(db, user_id)
+
+
+# ============= Performance Review Schemas =============
+class PerformanceReviewCreate(BaseModel):
+    user_id: int
+    period: str
+    score: int
+    rating: str
+    summary: Optional[str] = None
+    bonus_amount: int = 0
+
+
+@router.post("/performance/review", response_model=PerformanceReviewRead, summary="提交绩效评审", description="管理员对员工进行月度/季度绩效打分。")
+def create_performance_review(
+    review_in: PerformanceReviewCreate = Body(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """提交绩效考核结果"""
+    return performance_crud.create(db, review_in)
 
 
 # ============================================================

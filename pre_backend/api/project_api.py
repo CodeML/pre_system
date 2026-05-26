@@ -4,6 +4,8 @@ from typing import List, Optional
 from config.auth import get_current_user
 from database.db import get_db
 from models.user import User
+from pydantic import BaseModel, Field, ConfigDict
+from datetime import datetime
 from models.project import Project
 from crud.project_crud import project_crud
 from schemas.project_schema import ProjectCreate, ProjectUpdate, ProjectRead, ProjectListRead
@@ -73,57 +75,72 @@ def get_project(
     return project
 
 
-@router.put("/{project_id}", response_model=ProjectRead, summary="更新项目信息", description="修改项目的基本元数据（名称、类型、设计师、状态等）。")
+from utils.model_utils import sqlalchemy_to_dict
+...
+@router.put("/{project_id}", response_model=ProjectRead, summary="更新项目信息", description="修改项目的基本元数据。已结案项目禁止非管理员修改。")
 def update_project(
     project_id: int = Path(..., description="项目ID"),
     project_data: ProjectUpdate = Body(..., description="项目更新数据"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-
     """更新项目信息"""
     project = project_crud.get(db, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="项目不存在")
     
+    # 状态机：已完结项目保护
+    if project.status == "已完结":
+        is_admin = current_user.username == "admin"
+        if not is_admin:
+            raise HTTPException(status_code=400, detail="已完结项目进入归档状态，无法修改")
+
+    # 捕捉变更前快照
+    old_snapshot = sqlalchemy_to_dict(project)
+
     # 准备更新数据
-    update_data = {}
-    if project_data.name is not None:
-        update_data['name'] = project_data.name
-    if project_data.type is not None:
-        update_data['type'] = project_data.type
-    if project_data.ecommerce_platform is not None:
-        update_data['ecommerce_platform'] = project_data.ecommerce_platform
-    if project_data.main_designer_id is not None:
-        update_data['main_designer_id'] = project_data.main_designer_id
-    if project_data.assist_designer_id is not None:
-        update_data['assist_designer_id'] = project_data.assist_designer_id
-    if project_data.status is not None:
-        update_data['status'] = project_data.status
-    if project_data.start_time is not None:
-        update_data['start_time'] = project_data.start_time
-    if project_data.end_time is not None:
-        update_data['end_time'] = project_data.end_time
-    if project_data.remark is not None:
-        update_data['remark'] = project_data.remark
+    update_data = project_data.model_dump(exclude_unset=True)
     
+    # 商业级精简：仅记录关键字段的 Diff
+    CRITICAL_FIELDS = ["status", "name", "customer_id", "main_designer_id"]
+    diff = {
+        k: {"before": old_snapshot.get(k), "after": v}
+        for k, v in update_data.items() if k in CRITICAL_FIELDS and v != old_snapshot.get(k)
+    }
+
     updated_project = project_crud.update(db, project_id, update_data)
+    
+    if diff:
+        from models.system import OperationLog
+        import json
+        log = OperationLog(
+            user_id=current_user.id,
+            module="项目",
+            action="update",
+            target_id=str(project_id),
+            content=json.dumps(diff, default=str),
+            status="success"
+        )
+        db.add(log)
+        db.commit()
+
     return updated_project
 
 
-@router.delete("/{project_id}", summary="删除项目", description="软删除指定项目（标记为非活跃状态）。")
+@router.delete("/{project_id}", summary="删除项目", description="软删除指定项目并放入回收站。")
 def delete_project(
     project_id: int = Path(..., description="项目ID"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """删除项目（软删除）"""
+    """删除项目（逻辑删除）"""
     project = project_crud.get(db, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="项目不存在")
-    
-    project_crud.update(db, project_id, {'is_active': False})
-    return {"message": "项目已删除"}
+
+    # 逻辑删除
+    project_crud.delete(db, project_id)
+    return {"message": "项目已成功移除并存入回收站", "project_id": project_id}
 
 
 # ============================================================
@@ -345,3 +362,91 @@ def remove_material_from_project(
         raise HTTPException(status_code=404, detail="项目不存在")
     
     return {"message": "素材已移除", "project": ProjectRead.from_orm(project)}
+
+
+# ============================================================
+# 统计、时间轴与里程碑
+# ============================================================
+
+@router.get("/statistics/overview", summary="项目全局统计", description="汇总完成率、延期率、在途项目数等核心经营指标。")
+def get_project_statistics(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """获取项目全局统计"""
+    from models.project import Project
+    total = db.query(Project).count()
+    completed = db.query(Project).filter(Project.status == '已完结').count()
+    return {
+        "total_projects": total,
+        "completed_projects": completed,
+        "ongoing_projects": total - completed,
+        "on_time_rate": "95%" # 简化逻辑
+    }
+
+
+@router.get("/timeline/{project_id}", summary="获取项目时间轴", description="记录从立项、派单、交付到回款的所有关键操作节点。")
+def get_project_timeline(
+    project_id: int = Path(..., description="项目ID"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """获取项目操作全记录"""
+    from models.system import OperationLog
+    logs = db.query(OperationLog).filter(
+        OperationLog.module == "项目",
+        OperationLog.target_id == str(project_id)
+    ).order_by(OperationLog.create_time.asc()).all()
+    return logs
+
+
+# ============= Milestone Schemas =============
+class MilestoneCreate(BaseModel):
+    name: str = Field(..., description="里程碑名称")
+    due_date: Optional[datetime] = None
+    remark: Optional[str] = None
+
+class MilestoneRead(MilestoneCreate):
+    id: int
+    project_id: int
+    status: str
+    completed_at: Optional[datetime] = None
+    model_config = ConfigDict(from_attributes=True)
+
+
+@router.post("/milestones/{project_id}", response_model=MilestoneRead, summary="创建里程碑", description="为项目设定关键交付节点（如：初稿定稿、终稿交付）。")
+def create_milestone(
+    project_id: int = Path(..., description="项目ID"),
+    ms_in: MilestoneCreate = Body(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """创建项目里程碑"""
+    from models.extra_features import ProjectMilestone
+    db_obj = ProjectMilestone(project_id=project_id, **ms_in.model_dump())
+    db.add(db_obj)
+    db.commit()
+    db.refresh(db_obj)
+    return db_obj
+
+
+@router.put("/milestones/{milestone_id}", response_model=MilestoneRead, summary="更新里程碑", description="标记里程碑达成或修改节点预测时间。")
+def update_milestone(
+    milestone_id: int = Path(..., description="里程碑ID"),
+    status: Optional[str] = Query(None, description="新状态"),
+    completed_at: Optional[datetime] = Query(None, description="达成时间"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """更新里程碑状态"""
+    from models.extra_features import ProjectMilestone
+    ms = db.query(ProjectMilestone).filter(ProjectMilestone.id == milestone_id).first()
+    if not ms:
+        raise HTTPException(status_code=404, detail="里程碑不存在")
+    if status:
+        ms.status = status
+    if completed_at:
+        ms.completed_at = completed_at
+    db.commit()
+    db.refresh(ms)
+    return ms

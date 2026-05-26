@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 
 
@@ -36,6 +36,9 @@ class Token(BaseModel):
 
 class TokenWithUser(Token):
     user: UserRead = Field(..., description="用户信息")
+    roles: List[str] = Field(default=[], description="用户角色代码列表")
+    permissions: List[str] = Field(default=[], description="权限编码列表")
+    org_id: int = Field(1, description="当前所属组织ID")
 
 
 class ChangePasswordRequest(BaseModel):
